@@ -5,6 +5,7 @@
 import { program } from 'commander'
 import {
   extent as d3Extent,
+  max as d3Max,
   merge as d3Merge
 } from 'd3-array'
 import {
@@ -181,6 +182,14 @@ function doWebMercatorCalibration (landform, worldCoverage) {
   const mapSize = Math.max(width, height)
   const worldSize = 2.0 * Math.PI
   const scale = (worldSize * worldCoverage) / mapSize
+  console.log(
+    'longitudinal extent',
+    webMercatorXToLongitude(scale * (-0.5 * width)),
+    webMercatorXToLongitude(scale * (0.5 * width)))
+  console.log(
+    'latitudinal extent',
+    webMercatorYToLatitude(scale * (-0.5 * height)),
+    webMercatorYToLatitude(scale * (0.5 * height)))
   return landform.map(cluster => {
     return doWebMercatorCalibrationOnCluster(cluster, scale)
   })
@@ -295,16 +304,23 @@ function webMercatorYToLatitude (y) {
 }
 
 function convertIslandsToGeoJson (landform) {
-  return {
-    type: 'FeatureCollection',
-    features: landform.map(cluster => {
-      return {
-        type: 'Feature',
-        geometry: cluster.islandContours.contours[0],
-        properties: {}
-      }
-    })
+  const contourCount =
+    d3Max(landform.map(c => c.islandContours.contours.length))
+  const layers = {}
+  for (let i = 0; i < contourCount; ++i) {
+    landform = landform.filter(c => c.islandContours.contours.length > i)
+    layers[`islands-${i}`] = {
+      type: 'FeatureCollection',
+      features: landform.map(cluster => {
+        return {
+          type: 'Feature',
+          geometry: cluster.islandContours.contours[i],
+          properties: {}
+        }
+      })
+    }
   }
+  return layers
 }
 
 function convertPapersToGeoJson (landform) {
@@ -313,21 +329,23 @@ function convertPapersToGeoJson (landform) {
     return d3Merge(cluster.subclusters.map(s => s.papers))
   }))
   return {
-    type: 'FeatureCollection',
-    features: papers.map(paper => {
-      return {
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [
-            paper.x,
-            paper.y
-          ]
-        },
-        properties: {
-          paperId: paper.paper_id
+    papers: {
+      type: 'FeatureCollection',
+      features: papers.map(paper => {
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [
+              paper.x,
+              paper.y
+            ]
+          },
+          properties: {
+            paperId: paper.paper_id
+          }
         }
-      }
-    })
+      })
+    }
   }
 }
