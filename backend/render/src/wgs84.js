@@ -309,7 +309,9 @@ function convertIslandsToGeoJson (landform) {
   const layers = {}
   for (let i = 0; i < contourCount; ++i) {
     landform = landform.filter(c => c.islandContours.contours.length > i)
-    layers[`islands-${i}`] = {
+    // keeps the backward compatibility with the version 1
+    const layerName = (i == 0) ? 'islands' : `islands-${i}`
+    layers[layerName] = {
       type: 'FeatureCollection',
       features: landform.map(cluster => {
         return {
